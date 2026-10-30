@@ -1,0 +1,10 @@
+## 除了json模板以外，collections目录下的所有文件
+collections/**
+!collections/CollectionData.json
+
+## 编译产生的文件
+__pycache__/
+
+## GNU Emacs 产生的文件
+**#
+**~

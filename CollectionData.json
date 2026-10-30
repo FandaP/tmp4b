@@ -1,0 +1,30 @@
+{
+    "schema_version": 1,
+
+    "id": "ZCDS-0000",
+    "title": "",
+    "artist": "上海アリス幻樂団",
+    "type": 2,
+
+    "release": {
+	"date": "",
+	"event": "",
+    },
+
+    "metadata": {
+	"disc_total": 0,
+	"track_total": 0
+    },
+
+    "tracks": [
+	{
+	    "id": "ZCDS-0000-00",
+	    "track": 0,
+	    "file": "",
+	}
+    ],
+    
+    "booklet":{
+	"story": {}
+    }
+}
