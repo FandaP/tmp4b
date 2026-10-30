@@ -159,7 +159,7 @@ if __name__ == "__main__":
     # ---------- 初始化音乐库 ----------
     # 扫描指定目录，得到 Collection 对象列表。
     collections = scan_music_library(
-        "/media/fdp/cbd62ba2-9b9a-4662-be64-71ba9ac7ba87/home/musicplay/Music/Touhou/"
+        "./collections"
     )
 
 
