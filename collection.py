@@ -3,7 +3,7 @@
 
 '''
 TMP4B, a Touhou Music Player for those who can't use their screen.
-Copyright (C) 2026
+Copyright (C) 2026 FandaP
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -44,15 +44,13 @@ class Music:
         self.artist: str = artist
         self.publish_date: str = publish_date
 
-        self.duration: float = duration  # [修改] length -> duration
+        self.duration: float = duration
         self.track: int = track
         self.path: str = path
 
         self.story: str = story
-        self.music_id: str = music_id  # [修改] mid -> music_id
+        self.music_id: str = music_id
 
-    # [修改] 保留原有字段含义，将专辑中的曲目统一称为 tracks
-    # 这样可以与 Collection.tracks 保持一致
     # （本类不需要额外的方法）
 
 
@@ -70,12 +68,11 @@ class Collection:
         self.artist: str = artist
         self.publish_date: str = publish_date
 
-        self.track_count: int = track_count  # [修改] track_total -> track_count
-        self.collection_id: str = collection_id  # [修改] cid -> collection_id
-        self.collection_type: CollectionType = collection_type  # [修改] ctype -> collection_type
+        self.track_count: int = track_count
+        self.collection_id: str = collection_id
+        self.collection_type: CollectionType = collection_type
 
-        self.tracks = []  # [修改] musics -> tracks
+        self.tracks = []
 
-    # [修改] add_music -> add_track，与 tracks 的命名保持一致
     def add_track(self, *tracks):
         self.tracks.extend(tracks)
