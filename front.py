@@ -21,13 +21,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import collection
 from collection_manager import scan_music_library
-from random import randint
 
+from time import sleep
+from math import ceil
 import vlc
 import sys
 import tty
 import termios
-
+import threading
+from random import randint
 
 class MusicPlayer:
     """管理当前播放的专辑、曲目，以及 VLC 播放器实例。"""
@@ -121,36 +123,65 @@ class TUI:
         sys.stdout.write("\033[2J\033[H")
 
         # ---------- 标题区域 ----------
-        sys.stdout.write("                  Touhou Music Player for the Blinds (TMP4B)                    \n")
-        sys.stdout.write("                                  by FandaP                                     \n")
-        sys.stdout.write("=" * 80 + "\n")
+        sys.stdout.write("                  Touhou Music Player for the Blinds (TMP4B)                    \r\n")
+        sys.stdout.write("                                  by FandaP                                     \r\n")
+        sys.stdout.write("=" * 80 + "\r\n")
 
         # ---------- 专辑信息 ----------
-        sys.stdout.write(f"Collection: {self.player.current_collection.title}\n")
-        sys.stdout.write("Music List:\n")
+        sys.stdout.write(f"Collection: {self.player.current_collection.title}\r\n")
+        sys.stdout.write("Music List:\r\n")
 
         # ---------- 曲目列表 ----------
         # 当前播放曲目前面显示 >，其余曲目前面显示空格。
         # 这里只负责显示，不会在循环中切换曲目。
         for track in self.player.current_collection.tracks:
             if self.player.current_track == track:
-                sys.stdout.write(f"> {track.track}  {track.title}\n")
+                sys.stdout.write(f"> {track.track}  {track.title}\r\n")
             else:
-                sys.stdout.write(f"  {track.track}  {track.title}\n")
+                sys.stdout.write(f"  {track.track}  {track.title}\r\n")
 
-        sys.stdout.write("-" * 80 + "\n")
+        # ------------进度条-------------
+        if self.player.player.get_time() > 0:
+            scale_current_duration = self.player.player.get_time() / self.player.player.get_length()
+            sys.stdout.write("="*ceil(80 * scale_current_duration))
+            if self.player.player.is_playing():
+                sys.stdout.write("$")
+            else:
+                sys.stdout.write("|")
+            sys.stdout.write("-" * (79 - ceil(80 * scale_current_duration)) + "\r\n")
+        else:
+            sys.stdout.write("-" * 80+"\r\n")
 
         # ---------- 当前曲目详情 ----------
-        sys.stdout.write(f" Track: {self.player.current_track.track}\n")
-        sys.stdout.write(f" Music: {self.player.current_track.title}\n")
-        sys.stdout.write(f"Artist: {self.player.current_track.artist}\n")
+        sys.stdout.write(f" Track: {self.player.current_track.track}\r\n")
+        sys.stdout.write(f" Music: {self.player.current_track.title}\r\n")
+        sys.stdout.write(f"Artist: {self.player.current_track.artist}\r\n")
 
         # ---------- 操作提示区域 ----------
-        sys.stdout.write("=" * 80 + "\n")
+        sys.stdout.write("=" * 80 + "\r\n")
         sys.stdout.write(message)
 
         # 确保缓冲区中的内容立即显示到终端。
         sys.stdout.flush()
+
+    def refresh_progress(self):
+        """只重绘进度条"""
+        if self.player.player.get_length() <= 0 or self.player.player.get_time() < 0:
+            progress = 0.0
+        else:
+            progress = self.player.player.get_time() / self.player.player.get_length()
+
+        marker = "$" if self.player.player.is_playing() else "|"
+
+        sys.stdout.write("\0337") # 保存光标位置
+        sys.stdout.write("\033[5A") # 回到进度条所在行
+        if progress >= 0.95:
+            sys.stdout.write("\r" + "="*80 + "\r\n") # 绘制进度条
+        else:
+            sys.stdout.write("\r" + "="*ceil(80*progress) + marker + "-"*(79-ceil(80*progress)) + "\r\n") # 绘制进度条
+        sys.stdout.write("\0338") # 返回到保存的光标位置
+        sys.stdout.flush()
+        
 
     def read_key(self):
         """读取一个按键，并在读取结束后恢复终端输入设置。
@@ -170,39 +201,29 @@ class TUI:
         finally:
             # 即使读取按键时发生异常，也尝试恢复原来的终端设置。
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
         return key
 
+def check_progress(tui):
+    while True:
+        sleep(0.2)
+        tui.refresh_progress()
+        
 
-if __name__ == "__main__":
-
-    # ---------- 初始化音乐库 ----------
-    # 扫描指定目录，得到 Collection 对象列表。
-    collections = scan_music_library(
-        "./collections"
-    )
-
-
-    if not collections:
-        exit(1)
-    
-    # 随机选择一张专辑作为启动时播放的专辑。
-    collection_index = randint(0, len(collections) - 1)
-
-    # 创建播放器，默认从选中专辑的第一首曲目开始。
-    player = MusicPlayer(collections[collection_index])
-    player.start()
-
-    # 创建终端界面。
-    tui = TUI(player)
+def main_loop(player,tui):
+    global collections, collection_index, message
+    # 主事件循环
 
     # 保存需要在界面底部显示的提示信息。
     message = ""
 
-    # ---------- 主事件循环 ----------
-    # 每次循环先绘制界面，再读取按键，最后执行相应操作。
+    # 保存“是否需要重绘界面”的变量。
+    need_refresh = True
+    
+    # 每次循环先按需要重绘界面，再读取按键，最后执行相应操作。
     while True:
-        tui.refresh(message)
+        if need_refresh:
+            tui.refresh(message)
+        need_refresh = True
 
         # 提示信息只显示一轮，随后清空。
         message = ""
@@ -215,6 +236,7 @@ if __name__ == "__main__":
             case " ":
                 # 空格：暂停或恢复播放。
                 player.pause()
+                need_refresh = False
 
             case "s":
                 # s：停止播放。
@@ -229,26 +251,17 @@ if __name__ == "__main__":
                 # 如果当前是第一首，change_track(0) 会产生索引错误；
                 # 这里需要循环回专辑的最后一首。
                 if player.current_track.track <= 1:
-                    player.change_track(
-                        len(player.current_collection.tracks)
-                    )
+                    player.change_track(len(player.current_collection.tracks))
                 else:
-                    player.change_track(
-                        player.current_track.track - 1
-                    )
+                    player.change_track(player.current_track.track - 1)
 
             case "n":
                 # n：播放下一首曲目。
                 # 如果已经是最后一首，就循环回第一首。
-                if (
-                    player.current_track.track
-                    >= len(player.current_collection.tracks)
-                ):
+                if (player.current_track.track >= len(player.current_collection.tracks)):
                     player.change_track(1)
                 else:
-                    player.change_track(
-                        player.current_track.track + 1
-                    )
+                    player.change_track(player.current_track.track + 1)                    
 
             case "b":
                 # b：切换到音乐库列表中的上一张专辑。
@@ -275,7 +288,7 @@ if __name__ == "__main__":
                 #
                 # 这里需要临时使用普通的行输入，因此先恢复终端模式。
                 # read_key() 返回时已经恢复了原来的终端设置。
-                sys.stdout.write("\033[2K\rSwitch Track: ")
+                sys.stdout.write("\033[2K\rT ")
                 sys.stdout.flush()
 
                 user_input = sys.stdin.readline().rstrip("\n")
@@ -283,19 +296,62 @@ if __name__ == "__main__":
                 try:
                     track_number = int(user_input)
                     # 检查曲目编号是否处于有效范围。
-                    if (
-                        1 <= track_number
-                        <= len(player.current_collection.tracks)
-                    ):
+                    if (1 <= track_number <= len(player.current_collection.tracks)):                    
                         player.change_track(track_number)
                     else:
                         message = f"Please type an integer number between 1 and {len(player.current_collection.tracks)}!"
-                except ValueError:
-                    # 只有输入不能转换成整数时才捕获异常。
+                except (ValueError,IndexError):
+                    # 如果输入不能转换为整数或者超出范围
                     message = f"Please type an integer number between 1 and {len(player.current_collection.tracks)}!"
 
             case ":":
                 # 冒号：类似于vim当中的，唤起“更丰富的指令”
-                sys.stdout.write("\033[2K\r:")
+                sys.stdout.write("\r\033[2K: ")
                 sys.stdout.flush()
+                user_input = sys.stdin.readline().rstrip("\n").split(" ")
+                match user_input[0]:
+                    case "pause":
+                        # 暂停或恢复播放。
+                        player.pause()
+                        need_refresh = False
+                    case "start":
+                        player.start()
+                    case "stop":
+                        player.stop()
+                    case "restart":
+                        player.restart()
+                    case "refresh":
+                        need_refresh = True
+                    case _:
+                        need_refresh = False
+                sys.stdout.write("\033[1A\r\033[2K")
+            case _:
+                need_refresh = False
+                continue
                 
+if __name__ == "__main__":
+
+    ############ 初始化音乐库 #############
+    # 扫描指定目录，得到 Collection 对象列表。
+    collections = scan_music_library("./Touhou")
+
+
+    if not collections:
+        exit(1)
+    
+    # 随机选择一张专辑作为启动时播放的专辑。
+    collection_index = randint(0, len(collections) - 1)
+
+    # 创建播放器，默认从选中专辑的第一首曲目开始。
+    player = MusicPlayer(collections[collection_index])
+    player.start()
+
+    # 创建终端界面。
+    tui = TUI(player)
+
+    main_thread = threading.Thread(target=main_loop,args=(player,tui))
+    check_thread = threading.Thread(target=check_progress,args=(tui,))
+
+    main_thread.start()
+    check_thread.start()
+    
