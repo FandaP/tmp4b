@@ -20,7 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 '''
 
 import collection
-from collection_manager import *
+from scanner import *
 import player
 import tui
 
