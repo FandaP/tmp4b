@@ -140,9 +140,9 @@ TMP4B 专为 GNU/Linux 的 TTY 环境设计，不保证在其他平台上正常�
 
 ## Requirements 依赖
 
-TMP4B is written in Python 3.10+. It uses mutagen to scan audio files and vlc for audio playback. Please make sure all libraries are installed on your system. If not, use following command to install:
+TMP4B is written in Python 3.10+. It uses `mutagen` to scan audio files and `vlc` for audio playback. Please make sure all libraries are installed on your system. If not, use following command to install:
 
-TMP4B 使用 Python 3.10+ 编写，同时它使用 mutagen 库扫描音频文件，并使用 vlc 库进行音频播放。请确保你的系统中已经安装了这些库。如果你没有这些库，请使用以下命令安装：
+TMP4B 使用 Python 3.10+ 编写，同时它使用 `mutagen` 库扫描音频文件，并使用 `vlc` 库进行音频播放。请确保你的系统中已经安装了这些库。如果你没有这些库，请使用以下命令安装：
 
 ### Debian / Ubuntu
 ```bash
@@ -170,12 +170,14 @@ python -m pip install python-vlc
 
 ```
 TMP4B/
-├── front.py             # UI & Music player                 # 用户界面与播放器
-├── collection_manager.py
-├── collection.py        # class Collection & class Track    # Collection 类和 Track 类的定义
-├── CollectionData.json  # Collection data pattern           # 专辑数据模板
+├── collection.py        # Class `Collection` and class `Track` # 专辑（Collecton）类和曲目（Track）类的定义
+├── CollectionData.json  # Collection data pattern              # 专辑数据模板
 ├── LICENSE
-└── README.md
+├── player.py            # Class `MusicPlayer`                  # 音乐播放器（MusicPlayer）类的定义
+├── README.md
+├── scanner.py           # Music library scanner                # 音乐库扫描器
+├── tmp4b.py             # The entry of program                 # 程序入口
+└── tui.py               # Terminal user interface              # 终端用户界面（TUI）类的定义
 ```
 
 ## License 许可证
