@@ -22,6 +22,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import sys
 import tty
 import termios
+from math import ceil
+
 import player
 
 class TUI:

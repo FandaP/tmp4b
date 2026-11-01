@@ -23,9 +23,9 @@ import collection
 from scanner import *
 import player
 import tui
+import sys
 
 from time import sleep
-from math import ceil
 import threading
 from random import randint
 
