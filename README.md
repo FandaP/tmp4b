@@ -67,7 +67,7 @@ source .venv/bin/activate
 
 # Launch TMP4B
 # 启动 TMP4B
-python path/to/tmp4b/front.py
+python path/to/tmp4b/tmp4b.py
 ```
 
 Then you will enter a TUI (Terminal User Interface) , like:
@@ -163,7 +163,7 @@ cd /path/to/tmp4b/
 python -m venv .venv
 source .venv/bin/activate
 
-python -m pip install python-vlc
+python -m pip install python-vlc mutagen
 ```
 
 ## Project Structure 项目结构
