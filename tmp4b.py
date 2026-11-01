@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
     ############ 初始化音乐库 #############
     # 扫描指定目录，得到 Collection 对象列表。
-    collections = scan_music_library("./Touhou")
+    collections = scan_music_library("~/Music/Touhou")
 
 
     if not collections:
