@@ -48,7 +48,6 @@ class Music:
         self.track: int = track
         self.path: str = path
 
-        self.story: str = story
         self.music_id: str = music_id
 
     # （本类不需要额外的方法）
@@ -73,6 +72,10 @@ class Collection:
         self.collection_type: CollectionType = collection_type
 
         self.tracks = []
+        self.stories = {}
 
     def add_track(self, *tracks):
         self.tracks.extend(tracks)
+
+    def add_story(self, track, story):
+        self.stories[track] = story

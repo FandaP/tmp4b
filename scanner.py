@@ -121,15 +121,27 @@ def scan_music_library(library_root):
                     path=track_path
                 )
 
-                # 如果有专辑信息文件，就添加其中的故事与曲目 ID
+                # 如果有专辑信息文件，就添加其中的曲目 ID
                 if collection_data:
                     # 修复原代码末尾多余逗号导致赋值结果成为元组的问题
                     music.music_id = collection_data["tracks"][music.track - 1]["id"]
 
-                    music.story = collection_data["booklet"]["story"][str(music.track)]
-
                 collection.add_track(music)
 
+
+            # 如果有专辑信息文件，就添加完整的故事
+            if collection_data:
+                for track, story in collection_data["booklet"]["story"].items():
+                    try:
+                        if int(track) == 0:
+                            raise ValueError
+                        collection.add_story(collection.tracks[int(track)-1], story)
+                    except (ValueError, TypeError):
+                        collection.add_story(track, story)
+                    finally:
+                        pass
+
+            
             # 按曲目编号排序
             collection.tracks = sorted(
                 collection.tracks,
@@ -151,6 +163,11 @@ if __name__ == "__main__":
     collections = scan_music_library("./Touhou")
     
     for collection in collections:
-        print(f"{collection.title}, by {collection.artist}")
-        for music in collection.tracks:
-            print(f"  Track {music.track}: {music.title}")
+        print(f"{collection.title}, by {collection.artist}\n")
+        for track, story in collection.stories.items():
+            print("\n")
+            if type(track) == Music:
+                print(f"Track {track.track}  {track.title}\n\n{story}")
+            else:
+                print(f"{track}\n\n{story}")
+
