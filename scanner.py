@@ -21,8 +21,37 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from collection import *
 import os
-from mutagen.flac import FLAC
+import sys
 import json
+from mutagen.flac import FLAC
+
+
+def _tag(audio_file, key, default=None):
+    """读取一个 FLAC 标签；标签缺失或为空时返回 default。"""
+    values = audio_file.get(key)
+    if not values:
+        return default
+    return values[0] if values[0] not in (None, "") else default
+
+
+def _parse_int(value, default=0):
+    """把 "1" 或 Vorbis 约定的 "1/12" 解析为整数。"""
+    if value is None:
+        return default
+    try:
+        return int(str(value).split("/")[0])
+    except (TypeError, ValueError):
+        return default
+
+
+def _load_collection_data(path):
+    """读取专辑 JSON；文件损坏时只影响该专辑，不中断整个扫描。"""
+    try:
+        with open(path, "r", encoding="utf-8") as collection_data_file:
+            return json.load(collection_data_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"warning: cannot read {path}: {exc}", file=sys.stderr)
+        return {}
 
 
 # 扫描所有音乐文件
@@ -32,6 +61,11 @@ def scan_music_library(library_root):
 
     # 将 ~/foo/bar 路径展开为完整路径
     library_root = os.path.expanduser(library_root)
+
+    # 音乐库不存在时返回空列表，由调用方决定如何提示
+    if not os.path.isdir(library_root):
+        print(f"warning: music library {library_root} not found", file=sys.stderr)
+        return collections
 
     # 扫描整个音乐库目录
     with os.scandir(library_root) as album_dirs:
@@ -58,12 +92,7 @@ def scan_music_library(library_root):
                         and file_entry.name == "CollectionData.json"
                     ):
                         # 如果读取到的是专辑 JSON 文件
-                        with open(
-                            file_entry.path,
-                            "r",
-                            encoding="utf-8"
-                        ) as collection_data_file:
-                            collection_data = json.load(collection_data_file)
+                        collection_data = _load_collection_data(file_entry.path)
 
                     else:
                         continue
@@ -75,30 +104,47 @@ def scan_music_library(library_root):
             if collection_data:
                 # 如果识别到了 JSON 文件，就使用其中的专辑信息
                 # 同时将 JSON 中的类型值转换为 CollectionType 枚举
-                
+
                 collection = Collection(
-                    title=collection_data["title"],
-                    artist=collection_data["artist"],
-                    publish_date=collection_data["release"]["date"],
-                    track_count=collection_data["metadata"]["track_total"],
-                    collection_id=collection_data["id"],
+                    title=collection_data.get("title") or album_dir.name,
+                    artist=collection_data.get("artist") or "Unknown Artist",
+                    publish_date=(
+                        collection_data.get("release", {}).get("date")
+                        or "0000-00-00"
+                    ),
+                    track_count=(
+                        collection_data.get("metadata", {}).get("track_total")
+                        or len(track_paths)
+                    ),
+                    collection_id=collection_data.get("id"),
                     collection_type=(
                         CollectionType[collection_data["type"]]
-                        if isinstance(collection_data["type"], str)
-                        else CollectionType(collection_data["type"])
+                        if isinstance(collection_data.get("type"), str)
+                        and collection_data["type"] in CollectionType.__members__
+                        else CollectionType(collection_data.get("type", 0))
+                        if isinstance(collection_data.get("type"), int)
+                        else CollectionType.UNKNOWN
                     )
                 )
 
             else:
                 # 如果没有 JSON 文件，就读取任意 FLAC 文件中的专辑信息
-
-                first_audio_file = FLAC(track_paths[0])
+                try:
+                    first_audio_file = FLAC(track_paths[0])
+                except Exception as exc:
+                    print(
+                        f"warning: skipping album {album_dir.path}: {exc}",
+                        file=sys.stderr
+                    )
+                    continue
 
                 collection = Collection(
-                    title=first_audio_file.get("album")[0],
-                    artist=first_audio_file.get("albumartist")[0],
-                    publish_date=first_audio_file.get("date")[0],
-                    track_count=int(first_audio_file.get("tracktotal")[0])
+                    title=_tag(first_audio_file, "album", album_dir.name),
+                    artist=_tag(first_audio_file, "albumartist", "Unknown Artist"),
+                    publish_date=_tag(first_audio_file, "date", "0000-00-00"),
+                    track_count=_parse_int(
+                        _tag(first_audio_file, "tracktotal"), len(track_paths)
+                    )
                 )
 
             # 遍历当前专辑目录中的曲目文件
@@ -107,33 +153,45 @@ def scan_music_library(library_root):
                 if not os.path.isfile(track_path):
                     continue
 
-
                 # 用于获取 FLAC 文件的元数据与信息
-                audio_file = FLAC(track_path)
+                # 单个文件损坏或标签异常时跳过，不影响同一专辑的其它曲目
+                try:
+                    audio_file = FLAC(track_path)
+                except Exception as exc:
+                    print(
+                        f"warning: skipping unreadable file {track_path}: {exc}",
+                        file=sys.stderr
+                    )
+                    continue
 
                 # 创建 Music 实例
                 music = Music(
-                    title=audio_file.get("title")[0],
-                    artist=audio_file.get("artist")[0],
-                    publish_date=audio_file.get("date")[0],
+                    title=_tag(
+                        audio_file,
+                        "title",
+                        os.path.splitext(os.path.basename(track_path))[0]
+                    ),
+                    artist=_tag(audio_file, "artist", "Unknown Artist"),
+                    publish_date=_tag(audio_file, "date", "0000-00-00"),
                     duration=audio_file.info.length,
-                    track=int(audio_file.get("tracknumber")[0]),
+                    track=_parse_int(_tag(audio_file, "tracknumber"), 0),
                     path=track_path
                 )
 
                 # 如果有专辑信息文件，就添加其中的曲目 ID
                 if collection_data:
-                    # 修复原代码末尾多余逗号导致赋值结果成为元组的问题
-                    music.music_id = collection_data["tracks"][music.track - 1]["id"]
+                    entries = collection_data.get("tracks") or []
+                    if 1 <= music.track <= len(entries):
+                        music.music_id = entries[music.track - 1].get("id")
 
                 collection.add_track(music)
-            
+
             # 按曲目编号排序
             collection.tracks = sorted(
                 collection.tracks,
                 key=lambda music: music.track
             )
-            
+
             # 如果有专辑信息文件，就添加完整的故事
             if collection_data:
                 for track, story in collection_data["booklet"]["story"].items():
@@ -168,4 +226,3 @@ if __name__ == "__main__":
                 print(f"Track {track.track}  {track.title}\n\n{story}")
             else:
                 print(f"{track}\n\n{story}")
-

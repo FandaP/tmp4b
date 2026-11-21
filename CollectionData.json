@@ -7,24 +7,24 @@
     "type": 2,
 
     "release": {
-	"date": "",
-	"event": "",
+        "date": "",
+        "event": ""
     },
 
     "metadata": {
-	"disc_total": 0,
-	"track_total": 0
+        "disc_total": 0,
+        "track_total": 0
     },
 
     "tracks": [
-	{
-	    "id": "ZCDS-0000-00",
-	    "track": 0,
-	    "file": "",
-	}
+        {
+            "id": "ZCDS-0000-00",
+            "track": 0,
+            "file": ""
+        }
     ],
-    
-    "booklet":{
-	"story": {}
+
+    "booklet": {
+        "story": {}
     }
 }
