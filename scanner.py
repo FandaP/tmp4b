@@ -127,8 +127,13 @@ def scan_music_library(library_root):
                     music.music_id = collection_data["tracks"][music.track - 1]["id"]
 
                 collection.add_track(music)
-
-
+            
+            # 按曲目编号排序
+            collection.tracks = sorted(
+                collection.tracks,
+                key=lambda music: music.track
+            )
+            
             # 如果有专辑信息文件，就添加完整的故事
             if collection_data:
                 for track, story in collection_data["booklet"]["story"].items():
@@ -140,13 +145,6 @@ def scan_music_library(library_root):
                         collection.add_story(track, story)
                     finally:
                         pass
-
-            
-            # 按曲目编号排序
-            collection.tracks = sorted(
-                collection.tracks,
-                key=lambda music: music.track
-            )
 
             # 将当前专辑添加至专辑列表
             collections.append(collection)
